@@ -3,93 +3,68 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>META STACK - INDUSTRIAL ELITE</title>
+    <title>META STACK - FULL ENVIRONMENT</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        body { margin: 0; background: #010103; overflow: hidden; touch-action: none; font-family: 'Orbitron', sans-serif; color: #fff; }
+        body { margin: 0; background: #050508; overflow: hidden; touch-action: none; font-family: 'Orbitron', sans-serif; }
         #ui { position: absolute; top: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
         
-        /* HUD de Vidro Tecnológico */
-        .hud { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; background: rgba(0,255,204,0.05); padding: 15px 30px; border: 2px solid rgba(0,255,204,0.2); border-radius: 10px; backdrop-filter: blur(15px); box-shadow: 0 0 30px rgba(0,255,204,0.1); }
-        .data-val { font-size: 24px; font-weight: bold; color: #fff; text-shadow: 0 0 10px #00ffcc; }
-        .data-label { font-size: 10px; color: rgba(0,255,204,0.6); text-transform: uppercase; }
+        /* Painel Industrial [cite: 2026-02-03] */
+        .panel { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); background: linear-gradient(180deg, rgba(0,255,204,0.1) 0%, rgba(0,0,0,0.8) 100%); border: 2px solid #00ffcc; padding: 15px 40px; border-radius: 5px; box-shadow: 0 0 20px rgba(0,255,204,0.4); display: flex; gap: 40px; text-align: center; }
+        .label { font-size: 9px; color: #00ffcc; letter-spacing: 2px; }
+        .val { font-size: 22px; color: #fff; text-shadow: 0 0 10px #00ffcc; font-weight: bold; }
 
-        /* Botões de Aço Escovado */
-        .metal-btn { position: absolute; bottom: 20px; right: 20px; pointer-events: auto; background: linear-gradient(145deg, #222, #111); color: #00ffcc; border: 1px solid #444; padding: 12px 25px; font-weight: bold; font-family: 'Orbitron'; cursor: pointer; border-radius: 4px; box-shadow: 5px 5px 10px rgba(0,0,0,0.5); transition: 0.3s; }
-        .metal-btn:hover { background: #00ffcc; color: #000; box-shadow: 0 0 20px #00ffcc; }
-
-        #msg { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; text-align: center; background: rgba(0,0,0,0.95); padding: 50px; border: 3px solid #ff0055; border-radius: 15px; pointer-events: auto; backdrop-filter: blur(10px); box-shadow: 0 0 50px rgba(255,0,85,0.3); }
-        h1 { color: #ff0055; font-size: 2.5rem; text-shadow: 0 0 20px #ff0055; margin-top: 0; }
-        p { font-size: 1.1rem; color: #eee; opacity: 0.8; }
-        
-        #perfect { position: absolute; top: 30%; left: 50%; transform: translateX(-50%); font-size: 50px; color: #00ffcc; display: none; text-shadow: 0 0 30px #00ffcc; font-weight: bold; }
+        .shop-trigger { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); pointer-events: auto; background: #000; color: #00ffcc; border: 1px solid #00ffcc; padding: 10px 30px; cursor: pointer; text-transform: uppercase; font-size: 12px; letter-spacing: 3px; box-shadow: 0 0 15px rgba(0,255,204,0.2); }
     </style>
 </head>
 <body>
     <div id="ui">
-        <div class="hud">
-            <div><div class="data-label">SALDO (META)</div><div class="data-val" id="bal">R$ 0.00</div></div>
-            <div style="width: 1px; background: rgba(0,255,204,0.2);"></div>
-            <div><div class="data-label">NÍVEL</div><div class="data-val" id="lvl">0</div></div>
+        <div class="panel">
+            <div><div class="label">CREDIT_META</div><div class="val" id="bal">R$ 0.00</div></div>
+            <div><div class="label">ALTITUDE</div><div class="val" id="lvl">0</div></div>
         </div>
-        <div id="perfect">PERFEITO! +R$ 0.80</div>
-        <button class="metal-btn" onclick="toggleShop()">[ OPERAÇÃO: SKINS ]</button>
-    </div>
-
-    <div id="msg">
-        <h1>MARGEM DE ERRO EXCEDEDIDA</h1>
-        <p id="final-score"></p>
-        <button onclick="location.reload()" style="background:#ff0055; color:white; border:none; padding:15px 30px; font-weight:bold; cursor:pointer; font-family:'Orbitron';">REINICIAR SISTEMA</button>
+        <button class="shop-trigger" onclick="toggleShop()">Acessar Terminal Skins</button>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
-        // --- ÁUDIO E SENSORIAL ---
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        function playNote(f, type='triangle') {
-            const o = audioCtx.createOscillator(); const g = audioCtx.createGain();
-            o.type = type; o.frequency.setValueAtTime(f, audioCtx.currentTime);
-            g.gain.setValueAtTime(0.08, audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.4);
-            o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime + 0.4);
-        }
-
-        // --- MOTOR 3D REFINADO ---
-        let scene, camera, renderer, stack = [], score = 0, balance = 0, speed = 0.12, gameActive = true;
-        let activeMaterial = 0; // 0: Concreto, 1: Ouro, 2: Rubi
+        let scene, camera, renderer, stack = [], gameActive = true, score = 0, balance = 0, speed = 0.12;
+        let grid, particles;
 
         function init() {
             scene = new THREE.Scene();
-            scene.fog = new THREE.FogExp2(0x010103, 0.12); // Névoa industrial
+            scene.fog = new THREE.FogExp2(0x050508, 0.1);
             
             camera = new THREE.OrthographicCamera(window.innerWidth/-150, window.innerWidth/150, window.innerHeight/150, window.innerHeight/-150, -100, 1000);
             camera.position.set(4, 4, 4); camera.lookAt(0, 0, 0);
-            
+
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.body.appendChild(renderer.domElement);
 
+            // CENÁRIO: GRADE CYBER [cite: 2026-02-13]
+            grid = new THREE.GridHelper(100, 40, 0x00ffcc, 0x111111);
+            grid.position.y = -1;
+            scene.add(grid);
+
+            // CENÁRIO: PARTÍCULAS [cite: 2026-02-13]
+            const partGeo = new THREE.BufferGeometry();
+            const pos = [];
+            for(let i=0; i<500; i++) { pos.push(Math.random()*20-10, Math.random()*20-10, Math.random()*20-10); }
+            partGeo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+            particles = new THREE.Points(partGeo, new THREE.PointsMaterial({ color: 0x00ffcc, size: 0.05 }));
+            scene.add(particles);
+
             scene.add(new THREE.AmbientLight(0xffffff, 0.4));
-            const light = new THREE.DirectionalLight(0x00ffcc, 1); light.position.set(5, 15, 5); scene.add(light);
-            // Luz volumétrica de impacto
-            impactLight = new THREE.PointLight(0x00ffcc, 0, 10); scene.add(impactLight);
+            const l = new THREE.DirectionalLight(0x00ffcc, 1); l.position.set(5, 10, 5); scene.add(l);
 
             addBlock(0, 0, 3, 3); spawnNext();
-            loop();
-        }
-
-        function getMaterial(color) {
-            // Textura Concreto Industrial
-            return new THREE.MeshPhongMaterial({ 
-                color: color, 
-                shininess: 30, 
-                flatShading: true,
-                emissive: 0x050505
-            });
+            animate();
         }
 
         function addBlock(x, z, w, d) {
-            const colors = [0x333338, 0xffd700, 0xff0055]; // Cinza, Ouro, Rubi
-            const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, 1, d), getMaterial(colors[activeMaterial]));
+            const mat = new THREE.MeshPhongMaterial({ color: score % 2 === 0 ? 0x00ffcc : 0x0088ff, shininess: 100 });
+            const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, 1, d), mat);
             mesh.position.set(x, stack.length, z);
             scene.add(mesh);
             stack.push({ mesh, w, d });
@@ -97,77 +72,49 @@
 
         function spawnNext() { addBlock(-6, stack[stack.length-1].mesh.position.z, stack[stack.length-1].w, stack[stack.length-1].d); }
 
-        function loop() {
+        function animate() {
             if (!gameActive) return;
-            let current = stack[stack.length-1].mesh;
-            current.position.x += speed;
-            if (current.position.x > 6) endGame();
+            const top = stack[stack.length-1].mesh;
+            top.position.x += speed;
+            
+            // Movimentação do cenário para dar "vida" [cite: 2026-02-13]
+            grid.position.z = (grid.position.z + 0.05) % 2;
+            particles.rotation.y += 0.001;
+
+            if (top.position.x > 6) location.reload();
             renderer.render(scene, camera);
-            requestAnimationFrame(loop);
+            requestAnimationFrame(animate);
         }
 
         window.onclick = (e) => {
             if (e.target.tagName === 'BUTTON' || !gameActive) return;
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            
             const cur = stack[stack.length-1], prev = stack[stack.length-2];
             const diff = cur.mesh.position.x - prev.mesh.position.x;
             const absDiff = Math.abs(diff);
 
-            if (absDiff >= prev.w) return endGame();
+            if (absDiff >= prev.w) return location.reload();
 
-            // LÓGICA DE GANHO E FEEDBACK SENSORIAL
-            if (absDiff < 0.12) {
-                balance += 0.80; showPerfect();
-                if(navigator.vibrate) navigator.vibrate([30, 60, 30]);
-                playNote(440 + (score * 20));
-                // Flash de Luz
-                impactLight.position.copy(cur.mesh.position);
-                impactLight.intensity = 2; setTimeout(()=> impactLight.intensity = 0, 100);
-            } else {
-                balance += 0.40;
-                if(navigator.vibrate) navigator.vibrate(20);
-                playNote(220 + (score * 5));
-            }
+            // Lógica de Ganho [cite: 2026-01-19]
+            balance += (absDiff < 0.15) ? 0.80 : 0.40;
+            score++; speed += 0.005;
+            
+            document.getElementById('bal').innerText = "R$ " + balance.toFixed(2);
+            document.getElementById('lvl').innerText = score;
 
-            // AJUSTE DE TAMANHO COM FÍSICA Chapada
             const newW = prev.w - absDiff;
             cur.mesh.scale.x = newW / cur.w;
             cur.mesh.position.x = prev.mesh.position.x + diff/2;
             cur.w = newW;
 
-            score++; speed += 0.005;
-            updateUI();
             camera.position.y += 1;
+            grid.position.y += 1; // Grade sobe com a torre
             spawnNext();
         };
 
-        function updateUI() {
-            document.getElementById('bal').innerText = "R$ " + balance.toFixed(2);
-            document.getElementById('lvl').innerText = score;
-        }
-
-        function showPerfect() {
-            const p = document.getElementById('perfect');
-            p.style.display = 'block'; setTimeout(() => p.style.display = 'none', 600);
-        }
-
         function toggleShop() {
-            const n = prompt("OPERAÇÃO: LOJA SKINS (Gaste R$ para desbloquear)\n1. Concreto (Grátis)\n2. Ouro (R$ 50.00)\n3. Rubi (R$ 100.00)\nDigite o número:");
-            if(n == "2" && balance >= 50) { activeMaterial = 1; balance -= 50; }
-            else if(n == "3" && balance >= 100) { activeMaterial = 2; balance -= 100; }
-            else { activeMaterial = 0; }
-            // Atualiza o material de todos os blocos na stack
-            stack.forEach(b => b.mesh.material = getMaterial(activeMaterial==1 ? 0xffd700 : (activeMaterial==2 ? 0xff0055 : 0x333338)));
-            updateUI();
+            alert("TERMINAL ACESSADO: Em breve novos módulos de textura industrial.");
         }
 
-        function endGame() {
-            gameActive = false;
-            playNote(110, 'sawtooth'); if(navigator.vibrate) navigator.vibrate([200, 100, 200]);
-            document.getElementById('final-score').innerText = "Meta Interrompida: Nível " + score;
-            document.getElementById('msg').style.display = 'block';
-        }
         init();
     </script>
 </body>
