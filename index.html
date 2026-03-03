@@ -3,131 +3,188 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>THE BRIDGE - NEON SNIPER</title>
+    <title>META BRIDGE - ELITE PRECISION</title>
     <style>
-        body { margin: 0; background: #050505; color: #00ffcc; font-family: 'Courier New', monospace; overflow: hidden; touch-action: none; }
-        #gameCanvas { display: block; filter: drop-shadow(0 0 10px #00ffcc); }
-        #ui { position: absolute; top: 10px; left: 10px; z-index: 10; pointer-events: none; }
-        #msg { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; display: none; }
-        .neon-text { text-shadow: 0 0 5px #00ffcc, 0 0 15px #00ffcc; }
+        body { margin: 0; background: #0a0a0c; color: #00ffcc; font-family: 'Segoe UI', Roboto, sans-serif; overflow: hidden; touch-action: none; }
+        canvas { display: block; }
+        #ui { position: absolute; top: 20px; width: 100%; text-align: center; pointer-events: none; z-index: 10; }
+        .stat-box { display: inline-block; background: rgba(0, 255, 204, 0.1); border: 1px solid #00ffcc; padding: 10px 20px; border-radius: 5px; margin: 0 10px; backdrop-filter: blur(5px); }
+        #msg { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; display: none; z-index: 20; background: rgba(10, 10, 12, 0.95); padding: 30px; border: 2px solid #ff0055; border-radius: 15px; box-shadow: 0 0 30px rgba(255, 0, 85, 0.5); }
+        button { background: #00ffcc; color: #000; border: none; padding: 15px 30px; font-weight: bold; font-size: 1.1rem; border-radius: 5px; cursor: pointer; margin-top: 20px; text-transform: uppercase; }
+        .score-anim { animation: pulse 1s infinite; font-size: 2rem; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
     </style>
 </head>
 <body>
     <div id="ui">
-        <div class="neon-text">SALDO_CRIPT: <span id="balanceDisplay">--</span></div>
-        <div class="neon-text">VENTO_CHAOS: <span id="windDisplay">0.00</span></div>
+        <div class="stat-box">PONTOS: <span id="score">0</span></div>
+        <div class="stat-box">META: R$ <span id="balance">0.00</span></div>
     </div>
+
     <div id="msg">
-        <h1 class="neon-text" id="statusTitle">GAME OVER</h1>
-        <p>QUASE! VOCÊ ERROU POR <span id="errorDist"></span>mm</p>
-        <button onclick="resetGame()" style="padding: 10px 20px; background: #00ffcc; border: none; cursor: pointer;">TENTAR NOVAMENTE</button>
+        <h1 style="color: #ff0055; margin-top: 0;">META INTERROMPIDA</h1>
+        <p id="failReason">Você caiu no abismo.</p>
+        <div style="font-size: 0.8rem; color: #888;">DISTÂNCIA DO ERRO: <span id="errorDist">0</span>mm</div>
+        <button onclick="resetGame()">RECONECTAR SISTEMA</button>
     </div>
+
     <canvas id="gameCanvas"></canvas>
 
 <script>
-    // --- CAMADA 1: CRIPTOGRAFIA DE MEMÓRIA [2026-02-06] ---
-    let _s = Math.sqrt(93.8961); // Saldo inicial disfarçado (R$ 9.69)
-    function getBalance() { return (_s * _s).toFixed(2); }
-    function setBalance(v) { _s = Math.sqrt(v); }
-
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-
+    
+    // --- PADRÃO OURO: CONFIGURAÇÕES ---
+    let score = 0;
+    let balance = 0.00;
+    let gameState = 'IDLE'; // IDLE, BUILDING, ROTATING, MOVING, FALLING, GAMEOVER
+    let camX = 0;
+    let targetCamX = 0;
+    
+    // Configurações de Pilares
+    let platforms = [];
+    const pHeight = 250;
     let bridgeWidth = 0;
-    let isBuilding = false;
-    let playerX = 50;
-    let targetX = 150 + Math.random() * 150;
-    let targetWidth = 40;
-    let wind = 0;
-    let isSlowMo = false;
+    let bridgeRotation = 0;
+    let currentWind = (Math.random() - 0.5) * 2;
 
-    // --- CAMADA 2: LATÊNCIA FANTASMA [2026-02-13] ---
-    function phantomLatency() {
-        return Math.random() * (45 - 12) + 12;
+    function init() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        platforms = [
+            { x: 50, w: 80 }, // Plataforma Inicial
+            { x: 200 + Math.random() * 100, w: 60 } // Primeira Meta
+        ];
+        render();
     }
 
     function update() {
-        if (isBuilding) {
-            bridgeWidth += 3 + (Math.random() * 0.5); // Incremento com micro-ruído
+        // Suavização da Câmera
+        camX += (targetCamX - camX) * 0.1;
+
+        if (gameState === 'BUILDING') {
+            bridgeWidth += 4; // Velocidade de crescimento
         }
-        draw();
+        
+        if (gameState === 'MOVING') {
+            if (Math.abs(camX - targetCamX) < 1) {
+                gameState = 'IDLE';
+                generatePlatform();
+            }
+        }
+        render();
         requestAnimationFrame(update);
     }
 
-    function draw() {
+    function render() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.save();
+        ctx.translate(-camX, 0);
+
+        // Desenhar Chão/Abismo
+        ctx.fillStyle = '#050507';
+        ctx.fillRect(camX, canvas.height - 100, canvas.width, 100);
+
+        platforms.forEach((p, index) => {
+            // Estilo Neon para Pilares
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = index === platforms.length - 1 ? '#00ffcc' : '#333';
+            ctx.fillStyle = index === platforms.length - 1 ? '#00ffcc' : '#1a1a1e';
+            ctx.fillRect(p.x, canvas.height - pHeight, p.w, pHeight);
+            ctx.shadowBlur = 0;
+        });
+
+        // Desenhar Ponte
+        ctx.save();
+        const startX = platforms[0].x + platforms[0].w;
+        const startY = canvas.height - pHeight;
+        ctx.translate(startX, startY);
+        ctx.rotate(bridgeRotation);
         
-        // Plataforma Inicial
-        ctx.fillStyle = '#111';
-        ctx.fillRect(0, canvas.height - 100, 80, 100);
-
-        // Alvo (The Bridge)
-        ctx.fillStyle = isSlowMo ? '#ff0055' : '#00ffcc';
-        ctx.fillRect(targetX, canvas.height - 100, targetWidth, 100);
-
-        // Ponte sendo construída
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 4;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 5;
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = '#00ffcc';
         ctx.beginPath();
-        ctx.moveTo(80, canvas.height - 100);
-        ctx.lineTo(80, canvas.height - 100 - bridgeWidth);
+        ctx.moveTo(0, 0);
+        ctx.lineTo(0, -bridgeWidth);
         ctx.stroke();
+        ctx.restore();
 
-        // --- CAMADA 3: CHAOS ENGINE (VENTO) [2026-02-03] ---
-        document.getElementById('windDisplay').innerText = wind.toFixed(2) + " km/h";
+        ctx.restore();
     }
 
-    // --- LOGICA DE VÍCIO: O TOQUE ---
-    window.addEventListener('mousedown', () => {
-        setTimeout(() => { isBuilding = true; }, phantomLatency());
-    });
+    function generatePlatform() {
+        const last = platforms[platforms.length - 1];
+        platforms.shift(); // Remove a antiga para otimizar memória
+        const nextX = last.x + last.w + 100 + Math.random() * 150;
+        const nextW = Math.max(20, 60 - (score * 2)); // Dificuldade: Fica mais fino!
+        platforms.push({ x: nextX, w: nextW });
+    }
 
-    window.addEventListener('mouseup', () => {
-        setTimeout(() => {
-            isBuilding = false;
-            dropBridge();
-        }, phantomLatency());
-    });
-
-    function dropBridge() {
-        let finalPos = 80 + bridgeWidth;
-        let diff = Math.abs(finalPos - (targetX + targetWidth/2));
-
-        // --- CAMADA 4: SLOW MOTION (QUASE-ACERTO) [2026-02-13] ---
-        if (diff > targetWidth/2 && diff < targetWidth) {
-            isSlowMo = true;
-            document.getElementById('errorDist').innerText = (diff / 10).toFixed(2);
-            setTimeout(() => { showGameOver(); }, 800); // Queda em câmera lenta
-        } else if (diff <= targetWidth/2) {
-            // SUCESSO
-            setBalance(parseFloat(getBalance()) + 0.20);
-            alert("CENTRO PERFEITO! +R$ 0,20");
-            nextLevel();
-        } else {
-            showGameOver();
+    // --- CONTROLES (SINCERIDADE NO TOQUE) ---
+    function startBuild() {
+        if (gameState === 'IDLE') {
+            gameState = 'BUILDING';
+            bridgeWidth = 0;
+            bridgeRotation = 0;
         }
     }
 
-    function showGameOver() {
-        document.getElementById('msg').style.display = 'block';
-        document.getElementById('balanceDisplay').innerText = getBalance();
+    function endBuild() {
+        if (gameState === 'BUILDING') {
+            gameState = 'ROTATING';
+            animateRotation();
+        }
     }
 
-    function nextLevel() {
-        bridgeWidth = 0;
-        targetX = 150 + Math.random() * (canvas.width - 250);
-        targetWidth = Math.max(15, targetWidth - 2); // Pilar afunila (Fraqueza -> Força)
-        wind = (Math.random() - 0.5) * 10; // Vento aumenta
-        document.getElementById('balanceDisplay').innerText = getBalance();
+    function animateRotation() {
+        let angle = 0;
+        const interval = setInterval(() => {
+            angle += 0.1;
+            bridgeRotation = angle;
+            if (angle >= Math.PI / 2) {
+                clearInterval(interval);
+                checkSuccess();
+            }
+        }, 20);
+    }
+
+    function checkSuccess() {
+        const startX = platforms[0].x + platforms[0].w;
+        const endX = startX + bridgeWidth;
+        const target = platforms[1];
+        
+        const hitTarget = endX >= target.x && endX <= (target.x + target.w);
+        const diff = Math.abs(endX - (target.x + target.w / 2));
+
+        if (hitTarget) {
+            score++;
+            balance += 0.40; // Seus "40" de operação
+            document.getElementById('score').innerText = score;
+            document.getElementById('balance').innerText = balance.toFixed(2);
+            
+            targetCamX = target.x - 50;
+            gameState = 'MOVING';
+        } else {
+            // EFEITO QUASE-ACERTO
+            document.getElementById('errorDist').innerText = diff.toFixed(1);
+            gameState = 'FALLING';
+            document.getElementById('msg').style.display = 'block';
+        }
     }
 
     function resetGame() {
         location.reload();
     }
 
-    document.getElementById('balanceDisplay').innerText = getBalance();
+    window.addEventListener('mousedown', startBuild);
+    window.addEventListener('mouseup', endBuild);
+    window.addEventListener('touchstart', (e) => { e.preventDefault(); startBuild(); });
+    window.addEventListener('touchend', (e) => { e.preventDefault(); endBuild(); });
+
+    window.addEventListener('resize', init);
+    init();
     update();
 </script>
 </body>
