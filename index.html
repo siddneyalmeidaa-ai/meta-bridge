@@ -3,202 +3,93 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>META STACK - NEON ARCA V10</title>
+    <title>META STACK - FINAL</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;900&display=swap" rel="stylesheet">
     <style>
-        body { margin: 0; background: #000; overflow: hidden; touch-action: none; font-family: 'Orbitron', sans-serif; color: #fff; }
-        #ui { position: absolute; top: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
-        
-        /* GHOST HUD [cite: 2026-02-03] */
-        .ghost-hud {
-            position: absolute; top: 30px; right: 30px; text-align: right;
-            border-right: 3px solid #00ffcc; padding-right: 15px;
-            text-shadow: 0 0 15px #00ffcc;
-        }
+        body { margin: 0; background: #000; overflow: hidden; touch-action: none; font-family: 'Orbitron', sans-serif; }
+        #ui { position: absolute; top: 30px; right: 30px; text-align: right; border-right: 3px solid #00ffcc; padding-right: 15px; z-index: 10; pointer-events: none; }
         .label { font-size: 9px; color: #00ffcc; letter-spacing: 3px; opacity: 0.7; }
-        .value { font-size: 28px; font-weight: 900; }
-
-        #log { position: absolute; bottom: 20px; left: 20px; font-size: 10px; color: #00ffcc; font-family: monospace; opacity: 0.6; }
-        #perfect { 
-            position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); 
-            font-size: 45px; font-weight: 900; text-shadow: 0 0 25px #00ffcc; display: none; 
-        }
-
-        #overlay {
-            position: absolute; width: 100%; height: 100%; pointer-events: none;
-            background: radial-gradient(circle, transparent 20%, rgba(0,0,0,0.4) 100%);
-        }
+        .value { font-size: 28px; color: #fff; font-weight: 900; text-shadow: 0 0 15px #00ffcc; }
+        #perfect { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); font-size: 40px; font-weight: 900; color: #fff; text-shadow: 0 0 20px #00ffcc; display: none; z-index: 10; }
     </style>
 </head>
 <body>
-    <div id="overlay"></div>
     <div id="ui">
-        <div class="ghost-hud">
-            <div class="label">RESERVA_ENERGIA</div>
-            <div class="value" id="bal">R$ 0.00</div>
-            <div style="height: 15px;"></div>
-            <div class="label">ALTITUDE_STAKE</div>
-            <div class="value" id="lvl">0</div>
-        </div>
-        <div id="perfect">PERFECT_HIT</div>
-        <div id="log">> STATUS: AGUARDANDO_INPUT...<br>> AUDIO_CORE: STANDBY</div>
+        <div class="label">RESERVA_ENERGIA</div><div class="value" id="bal">R$ 0.00</div>
+        <div style="height:15px"></div>
+        <div class="label">ALTITUDE_STAKE</div><div class="value" id="lvl">0</div>
     </div>
+    <div id="perfect">PERFECT_HIT</div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
-        // --- MOTOR DE ÁUDIO SINTETIZADO [cite: 2026-02-13] ---
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        let musicStarted = false;
+        let scene, camera, renderer, stack=[], score=0, balance=0, speed=0.14, active=true, music=false;
 
-        function playSfx(type) {
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            const osc = audioCtx.createOscillator();
-            const g = audioCtx.createGain();
-            osc.connect(g); g.connect(audioCtx.destination);
-
-            if (type === 'hit') { // Acerto R$ 0.40
-                osc.type = 'sine'; osc.frequency.setValueAtTime(220, audioCtx.currentTime);
-                g.gain.setValueAtTime(0.1, audioCtx.currentTime);
-                g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.3);
-                osc.start(); osc.stop(audioCtx.currentTime + 0.3);
-            } else if (type === 'perfect') { // Acerto R$ 0.80
-                osc.type = 'triangle'; osc.frequency.setValueAtTime(440 + (score * 10), audioCtx.currentTime);
-                g.gain.setValueAtTime(0.15, audioCtx.currentTime);
-                g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.6);
-                osc.start(); osc.stop(audioCtx.currentTime + 0.6);
-            } else if (type === 'over') { // Game Over
-                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(100, audioCtx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 1);
-                g.gain.setValueAtTime(0.2, audioCtx.currentTime);
-                g.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 1);
-                osc.start(); osc.stop(audioCtx.currentTime + 1);
-            }
+        function sfx(f, d=0.3) {
+            const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+            o.type='triangle'; o.frequency.setValueAtTime(f, audioCtx.currentTime);
+            g.gain.setValueAtTime(0.1, audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime+d);
+            o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime+d);
         }
-
-        function startAmbient() {
-            const osc = audioCtx.createOscillator();
-            const g = audioCtx.createGain();
-            osc.type = 'sine'; osc.frequency.setValueAtTime(55, audioCtx.currentTime);
-            g.gain.value = 0.02;
-            osc.connect(g); g.connect(audioCtx.destination);
-            osc.start();
-        }
-
-        // --- MOTOR GRÁFICO (DOBRA ESPACIAL) [cite: 2026-02-28, 2026-02-13] ---
-        let scene, camera, renderer, stack = [], gameActive = true, score = 0, balance = 0, speed = 0.14, warpLines = [];
 
         function init() {
             scene = new THREE.Scene();
-            scene.fog = new THREE.FogExp2(0x000000, 0.08);
-
-            camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(7, 7, 7); camera.lookAt(0, 0, 0);
-
-            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            scene.fog = new THREE.FogExp2(0x000000, 0.1);
+            camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 1000);
+            camera.position.set(7, 7, 7); camera.lookAt(0,0,0);
+            renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(window.devicePixelRatio);
             document.body.appendChild(renderer.domElement);
 
-            // Efeito de Velocidade (Linhas de Dobra)
-            const lineMat = new THREE.LineBasicMaterial({ color: 0x00ffcc, transparent: true, opacity: 0.15 });
-            for(let i=0; i<60; i++) {
-                const geo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), new THREE.Vector3(0,20,0)]);
-                const line = new THREE.Line(geo, lineMat);
-                line.position.set(Math.random()*30-15, Math.random()*40-20, Math.random()*30-15);
-                scene.add(line); warpLines.push(line);
-            }
-
+            const light = new THREE.PointLight(0x00ffcc, 2, 50); light.position.set(10, 20, 10); scene.add(light);
             scene.add(new THREE.AmbientLight(0xffffff, 0.2));
-            const p1 = new THREE.PointLight(0x00ffcc, 1.5); p1.position.set(10, 20, 10); scene.add(p1);
-            const p2 = new THREE.PointLight(0x8800ff, 1.5); p2.position.set(-10, -10, -10); scene.add(p2);
 
-            addBlock(0, 3, 3); spawnNext();
-            animate();
+            addBlock(0, 3, 3); spawn(); animate();
         }
 
         function addBlock(y, w, d) {
-            const geo = new THREE.BoxGeometry(w, 0.8, d);
-            const mat = new THREE.MeshStandardMaterial({ 
-                color: 0x000000, metalness: 1, roughness: 0, 
-                emissive: score % 2 === 0 ? 0x00ffcc : 0x0088ff, emissiveIntensity: 0.4,
-                transparent: true, opacity: 0.8
-            });
-            const mesh = new THREE.Mesh(geo, mat);
-            
-            const wire = new THREE.LineSegments(new THREE.EdgesGeometry(geo), 
-                new THREE.LineBasicMaterial({ color: score % 2 === 0 ? 0x00ffcc : 0x0088ff, transparent: true, opacity: 0.6 }));
-            mesh.add(wire);
-
-            mesh.position.set(0, y, 0);
-            scene.add(mesh);
-            stack.push({ mesh, w, d });
+            const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, 1, d), new THREE.MeshStandardMaterial({ color: 0x000000, emissive: score%2?0x00ffcc:0x8800ff, emissiveIntensity: 0.5, transparent: true, opacity: 0.8 }));
+            const wire = new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry), new THREE.LineBasicMaterial({ color: 0xffffff, opacity: 0.3, transparent: true }));
+            mesh.add(wire); mesh.position.set(0, y, 0); scene.add(mesh); stack.push({ mesh, w, d });
         }
 
-        function spawnNext() {
-            const last = stack[stack.length-1];
-            addBlock(stack.length, last.w, last.d);
+        function spawn() {
+            addBlock(stack.length, stack[stack.length-1].w, stack[stack.length-1].d);
             stack[stack.length-1].mesh.position.x = -7;
         }
 
         function animate() {
-            if (!gameActive) return;
+            if(!active) return;
             const top = stack[stack.length-1].mesh;
             top.position.x += speed;
-
-            camera.position.y += ( (stack.length + 4) - camera.position.y ) * 0.05;
-            camera.lookAt(0, stack.length - 2, 0);
-
-            warpLines.forEach(l => {
-                l.position.y -= 0.3;
-                if(l.position.y < -20) l.position.y = 20;
-            });
-
-            if (top.position.x > 7) gameOver();
+            camera.position.y += ((stack.length+4) - camera.position.y) * 0.05;
+            camera.lookAt(0, stack.length-2, 0);
+            if(top.position.x > 7) location.reload();
             renderer.render(scene, camera);
             requestAnimationFrame(animate);
         }
 
         window.onclick = () => {
-            if (!gameActive) return;
-            if (!musicStarted) { startAmbient(); musicStarted = true; }
-
-            const cur = stack[stack.length-1], prev = stack[stack.length-2];
+            if(!active) return;
+            if(!music) { audioCtx.resume(); music=true; }
+            const cur=stack[stack.length-1], prev=stack[stack.length-2];
             const diff = cur.mesh.position.x - prev.mesh.position.x;
-            const absDiff = Math.abs(diff);
+            const abs = Math.abs(diff);
 
-            if (absDiff >= prev.w) return gameOver();
+            if(abs >= prev.w) return location.reload();
 
-            if (absDiff < 0.15) { // PERFECT [cite: 2026-01-19]
-                balance += 0.80; playSfx('perfect'); showPerfect();
-                document.getElementById('log').innerHTML = "> STATUS: CONEXÃO_OTIMIZADA";
-            } else {
-                balance += 0.40; playSfx('hit');
-                document.getElementById('log').innerHTML = "> STATUS: DADOS_ESTÁVEIS";
-            }
+            if(abs < 0.15) { balance += 0.80; sfx(440+(score*10)); document.getElementById('perfect').style.display='block'; setTimeout(()=>document.getElementById('perfect').style.display='none',500); }
+            else { balance += 0.40; sfx(220); }
 
-            const newW = prev.w - absDiff;
+            const newW = prev.w - abs;
             cur.mesh.scale.x = newW / cur.w;
             cur.mesh.position.x = prev.mesh.position.x + diff/2;
-            cur.w = newW;
-
-            score++; speed += 0.005;
+            cur.w = newW; score++; speed += 0.005;
             document.getElementById('bal').innerText = "R$ " + balance.toFixed(2);
             document.getElementById('lvl').innerText = score;
-            spawnNext();
+            spawn();
         };
-
-        function showPerfect() {
-            const p = document.getElementById('perfect');
-            p.style.display = 'block'; setTimeout(() => p.style.display = 'none', 500);
-        }
-
-        function gameOver() {
-            gameActive = false; playSfx('over');
-            if(navigator.vibrate) navigator.vibrate([200, 100, 200]);
-            alert("SISTEMA_OFFLINE. ALTITUDE: " + score);
-            location.reload();
-        }
-
         init();
     </script>
 </body>
