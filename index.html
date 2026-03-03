@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>META STACK - FINAL</title>
+    <title>META STACK - SPACE ODYSSEY</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;900&display=swap" rel="stylesheet">
     <style>
         body { margin: 0; background: #000; overflow: hidden; touch-action: none; font-family: 'Orbitron', sans-serif; }
         #ui { position: absolute; top: 30px; right: 30px; text-align: right; border-right: 3px solid #00ffcc; padding-right: 15px; z-index: 10; pointer-events: none; }
         .label { font-size: 9px; color: #00ffcc; letter-spacing: 3px; opacity: 0.7; }
         .value { font-size: 28px; color: #fff; font-weight: 900; text-shadow: 0 0 15px #00ffcc; }
-        #perfect { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); font-size: 40px; font-weight: 900; color: #fff; text-shadow: 0 0 20px #00ffcc; display: none; z-index: 10; }
+        #log { position: absolute; bottom: 20px; left: 20px; font-size: 9px; color: #00ffcc; opacity: 0.5; pointer-events: none; }
     </style>
 </head>
 <body>
@@ -19,12 +19,13 @@
         <div style="height:15px"></div>
         <div class="label">ALTITUDE_STAKE</div><div class="value" id="lvl">0</div>
     </div>
-    <div id="perfect">PERFECT_HIT</div>
+    <div id="log">> SETOR: QUADRANTE_DELTA<br>> MOTOR_GRAVITACIONAL: ATIVO</div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         let scene, camera, renderer, stack=[], score=0, balance=0, speed=0.14, active=true, music=false;
+        let starField, planet;
 
         function sfx(f, d=0.3) {
             const o=audioCtx.createOscillator(), g=audioCtx.createGain();
@@ -35,22 +36,42 @@
 
         function init() {
             scene = new THREE.Scene();
-            scene.fog = new THREE.FogExp2(0x000000, 0.1);
+            scene.fog = new THREE.FogExp2(0x000205, 0.07);
             camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 1000);
             camera.position.set(7, 7, 7); camera.lookAt(0,0,0);
+            
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.body.appendChild(renderer.domElement);
 
-            const light = new THREE.PointLight(0x00ffcc, 2, 50); light.position.set(10, 20, 10); scene.add(light);
-            scene.add(new THREE.AmbientLight(0xffffff, 0.2));
+            // --- UNIVERSO PROCEDURAL [cite: 2026-02-13] ---
+            const starGeo = new THREE.BufferGeometry();
+            const starPos = [];
+            for(let i=0; i<2000; i++) {
+                starPos.push((Math.random()-0.5)*100, (Math.random()-0.5)*100, (Math.random()-0.5)*100);
+            }
+            starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
+            starField = new THREE.Points(starGeo, new THREE.PointsMaterial({color: 0xffffff, size: 0.1}));
+            scene.add(starField);
+
+            // PLANETA DISTANTE
+            const planetGeo = new THREE.SphereGeometry(5, 32, 32);
+            const planetMat = new THREE.MeshStandardMaterial({ color: 0x0a0a20, emissive: 0x002244, roughness: 1 });
+            planet = new THREE.Mesh(planetGeo, planetMat);
+            planet.position.set(-20, -10, -30);
+            scene.add(planet);
+
+            scene.add(new THREE.PointLight(0x00ffcc, 2, 50));
+            scene.add(new THREE.AmbientLight(0x404040, 0.5));
 
             addBlock(0, 3, 3); spawn(); animate();
         }
 
         function addBlock(y, w, d) {
-            const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, 1, d), new THREE.MeshStandardMaterial({ color: 0x000000, emissive: score%2?0x00ffcc:0x8800ff, emissiveIntensity: 0.5, transparent: true, opacity: 0.8 }));
-            const wire = new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry), new THREE.LineBasicMaterial({ color: 0xffffff, opacity: 0.3, transparent: true }));
+            const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, 1, d), new THREE.MeshStandardMaterial({ 
+                color: 0x000000, emissive: score%2?0x00ffcc:0x8800ff, emissiveIntensity: 0.6, transparent: true, opacity: 0.85 
+            }));
+            const wire = new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry), new THREE.LineBasicMaterial({ color: 0xffffff, opacity: 0.4, transparent: true }));
             mesh.add(wire); mesh.position.set(0, y, 0); scene.add(mesh); stack.push({ mesh, w, d });
         }
 
@@ -63,8 +84,14 @@
             if(!active) return;
             const top = stack[stack.length-1].mesh;
             top.position.x += speed;
+
+            // Movimento de Câmera e Universo [cite: 2026-02-28]
             camera.position.y += ((stack.length+4) - camera.position.y) * 0.05;
             camera.lookAt(0, stack.length-2, 0);
+            
+            starField.position.y = camera.position.y * 0.8; // Efeito de paralaxe
+            starField.rotation.y += 0.0005;
+
             if(top.position.x > 7) location.reload();
             renderer.render(scene, camera);
             requestAnimationFrame(animate);
@@ -79,13 +106,14 @@
 
             if(abs >= prev.w) return location.reload();
 
-            if(abs < 0.15) { balance += 0.80; sfx(440+(score*10)); document.getElementById('perfect').style.display='block'; setTimeout(()=>document.getElementById('perfect').style.display='none',500); }
-            else { balance += 0.40; sfx(220); }
+            balance += (abs < 0.15) ? 0.80 : 0.40;
+            sfx(abs < 0.15 ? 440+(score*10) : 220);
 
             const newW = prev.w - abs;
             cur.mesh.scale.x = newW / cur.w;
             cur.mesh.position.x = prev.mesh.position.x + diff/2;
             cur.w = newW; score++; speed += 0.005;
+            
             document.getElementById('bal').innerText = "R$ " + balance.toFixed(2);
             document.getElementById('lvl').innerText = score;
             spawn();
