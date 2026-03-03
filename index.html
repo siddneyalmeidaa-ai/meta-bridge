@@ -3,81 +3,110 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>META STACK - SPACE ODYSSEY</title>
+    <title>META STACK - 10D EDITION</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;900&display=swap" rel="stylesheet">
     <style>
         body { margin: 0; background: #000; overflow: hidden; touch-action: none; font-family: 'Orbitron', sans-serif; }
-        #ui { position: absolute; top: 30px; right: 30px; text-align: right; border-right: 3px solid #00ffcc; padding-right: 15px; z-index: 10; pointer-events: none; }
-        .label { font-size: 9px; color: #00ffcc; letter-spacing: 3px; opacity: 0.7; }
-        .value { font-size: 28px; color: #fff; font-weight: 900; text-shadow: 0 0 15px #00ffcc; }
-        #log { position: absolute; bottom: 20px; left: 20px; font-size: 9px; color: #00ffcc; opacity: 0.5; pointer-events: none; }
+        #ui { position: absolute; top: 30px; right: 30px; text-align: right; border-right: 4px solid #00ffcc; padding-right: 15px; z-index: 10; pointer-events: none; }
+        .label { font-size: 8px; color: #00ffcc; letter-spacing: 4px; opacity: 0.6; }
+        .value { font-size: 30px; color: #fff; font-weight: 900; text-shadow: 0 0 20px #00ffcc; }
+        #perfect { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); font-size: 40px; font-weight: 900; color: #fff; text-shadow: 0 0 30px #00ffcc; display: none; z-index: 11; }
+        #log { position: absolute; bottom: 20px; left: 20px; font-size: 10px; color: #00ffcc; font-family: monospace; opacity: 0.5; }
     </style>
 </head>
 <body>
     <div id="ui">
-        <div class="label">RESERVA_ENERGIA</div><div class="value" id="bal">R$ 0.00</div>
-        <div style="height:15px"></div>
-        <div class="label">ALTITUDE_STAKE</div><div class="value" id="lvl">0</div>
+        <div class="label">ENERGIA_CONCENTRAÇÃO</div><div class="value" id="bal">R$ 0.00</div>
+        <div style="height:20px"></div>
+        <div class="label">NÍVEL_DIMENSIONAL</div><div class="value" id="lvl">0</div>
     </div>
-    <div id="log">> SETOR: QUADRANTE_DELTA<br>> MOTOR_GRAVITACIONAL: ATIVO</div>
+    <div id="perfect">CONEXÃO_PURIFICADA</div>
+    <div id="log">> GPU_ACCELERATION: ACTIVE<br>> DIMENSION: 10D_REFRACTIVE</div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
+        // CONFIGURAÇÃO DE ÁUDIO SENSORIAL [cite: 2026-02-13]
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        let scene, camera, renderer, stack=[], score=0, balance=0, speed=0.14, active=true, music=false;
-        let starField, planet;
-
-        function sfx(f, d=0.3) {
+        function sfx(f, d=0.4) {
             const o=audioCtx.createOscillator(), g=audioCtx.createGain();
-            o.type='triangle'; o.frequency.setValueAtTime(f, audioCtx.currentTime);
-            g.gain.setValueAtTime(0.1, audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime+d);
+            o.type='sine'; o.frequency.setValueAtTime(f, audioCtx.currentTime);
+            g.gain.setValueAtTime(0.1, audioCtx.currentTime); 
+            g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime+d);
             o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime+d);
         }
 
+        let scene, camera, renderer, stack=[], score=0, balance=0, speed=0.15, active=true, music=false;
+        let stars;
+
         function init() {
             scene = new THREE.Scene();
-            scene.fog = new THREE.FogExp2(0x000205, 0.07);
+            scene.fog = new THREE.FogExp2(0x000508, 0.08);
+
             camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 1000);
-            camera.position.set(7, 7, 7); camera.lookAt(0,0,0);
-            
-            renderer = new THREE.WebGLRenderer({ antialias: true });
+            camera.position.set(8, 8, 8); camera.lookAt(0,0,0);
+
+            // ATIVAÇÃO DA "PLACA DE VÍDEO" [cite: 2026-03-36]
+            renderer = new THREE.WebGLRenderer({ 
+                antialias: true, 
+                powerPreference: "high-performance",
+                precision: "highp" 
+            });
             renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
             document.body.appendChild(renderer.domElement);
 
-            // --- UNIVERSO PROCEDURAL [cite: 2026-02-13] ---
+            // FUNDO: ESTRELAS EM 3D REAL
             const starGeo = new THREE.BufferGeometry();
             const starPos = [];
-            for(let i=0; i<2000; i++) {
-                starPos.push((Math.random()-0.5)*100, (Math.random()-0.5)*100, (Math.random()-0.5)*100);
-            }
+            for(let i=0; i<3000; i++) starPos.push((Math.random()-0.5)*120, (Math.random()-0.5)*120, (Math.random()-0.5)*120);
             starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
-            starField = new THREE.Points(starGeo, new THREE.PointsMaterial({color: 0xffffff, size: 0.1}));
-            scene.add(starField);
+            stars = new THREE.Points(starGeo, new THREE.PointsMaterial({color: 0x00ffcc, size: 0.1, transparent: true, opacity: 0.6}));
+            scene.add(stars);
 
-            // PLANETA DISTANTE
-            const planetGeo = new THREE.SphereGeometry(5, 32, 32);
-            const planetMat = new THREE.MeshStandardMaterial({ color: 0x0a0a20, emissive: 0x002244, roughness: 1 });
-            planet = new THREE.Mesh(planetGeo, planetMat);
-            planet.position.set(-20, -10, -30);
-            scene.add(planet);
-
-            scene.add(new THREE.PointLight(0x00ffcc, 2, 50));
-            scene.add(new THREE.AmbientLight(0x404040, 0.5));
+            // ILUMINAÇÃO DE ALTO CONTRASTE
+            const p1 = new THREE.PointLight(0x00ffcc, 2.5, 60); p1.position.set(10, 20, 10); scene.add(p1);
+            const p2 = new THREE.PointLight(0x8800ff, 2, 60); p2.position.set(-10, -10, -10); scene.add(p2);
+            scene.add(new THREE.AmbientLight(0xffffff, 0.1));
 
             addBlock(0, 3, 3); spawn(); animate();
         }
 
         function addBlock(y, w, d) {
-            const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, 1, d), new THREE.MeshStandardMaterial({ 
-                color: 0x000000, emissive: score%2?0x00ffcc:0x8800ff, emissiveIntensity: 0.6, transparent: true, opacity: 0.85 
-            }));
-            const wire = new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry), new THREE.LineBasicMaterial({ color: 0xffffff, opacity: 0.4, transparent: true }));
-            mesh.add(wire); mesh.position.set(0, y, 0); scene.add(mesh); stack.push({ mesh, w, d });
+            // Material 10D: Cristal Negro Refletivo [cite: 2026-03-37]
+            const geo = new THREE.BoxGeometry(w, 1, d);
+            const mat = new THREE.MeshStandardMaterial({ 
+                color: 0x000000, 
+                emissive: score % 2 === 0 ? 0x00ffcc : 0x8800ff,
+                emissiveIntensity: 0.8,
+                metalness: 1,
+                roughness: 0,
+                transparent: true,
+                opacity: 0.9
+            });
+            const mesh = new THREE.Mesh(geo, mat);
+
+            // Bordas de Energia Neon
+            const edges = new THREE.EdgesGeometry(geo);
+            const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.4 }));
+            mesh.add(line);
+
+            mesh.position.set(0, y, 0);
+            scene.add(mesh);
+            stack.push({ mesh, w, d });
+
+            // LIMPEZA DE MEMÓRIA (ANTI-TRAVAMENTO) [cite: 2026-01-23]
+            if(stack.length > 15) {
+                const old = stack.shift();
+                scene.remove(old.mesh);
+                old.mesh.geometry.dispose();
+                old.mesh.material.dispose();
+            }
         }
 
         function spawn() {
-            addBlock(stack.length, stack[stack.length-1].w, stack[stack.length-1].d);
-            stack[stack.length-1].mesh.position.x = -7;
+            const last = stack[stack.length-1];
+            addBlock(stack.length + (score > 14 ? score-14 : 0), last.w, last.d);
+            stack[stack.length-1].mesh.position.x = -8;
         }
 
         function animate() {
@@ -85,14 +114,15 @@
             const top = stack[stack.length-1].mesh;
             top.position.x += speed;
 
-            // Movimento de Câmera e Universo [cite: 2026-02-28]
-            camera.position.y += ((stack.length+4) - camera.position.y) * 0.05;
-            camera.lookAt(0, stack.length-2, 0);
-            
-            starField.position.y = camera.position.y * 0.8; // Efeito de paralaxe
-            starField.rotation.y += 0.0005;
+            // Câmera Cinematográfica Inercial
+            camera.position.y += ((stack.length + (score > 14 ? score-14 : 0) + 5) - camera.position.y) * 0.05;
+            camera.lookAt(0, stack.length - 2, 0);
 
-            if(top.position.x > 7) location.reload();
+            // Movimento do Universo
+            stars.rotation.y += 0.0005;
+            stars.position.y = camera.position.y * 0.9;
+
+            if(top.position.x > 8) location.reload();
             renderer.render(scene, camera);
             requestAnimationFrame(animate);
         }
@@ -100,19 +130,26 @@
         window.onclick = () => {
             if(!active) return;
             if(!music) { audioCtx.resume(); music=true; }
+            
             const cur=stack[stack.length-1], prev=stack[stack.length-2];
             const diff = cur.mesh.position.x - prev.mesh.position.x;
             const abs = Math.abs(diff);
 
             if(abs >= prev.w) return location.reload();
 
-            balance += (abs < 0.15) ? 0.80 : 0.40;
-            sfx(abs < 0.15 ? 440+(score*10) : 220);
+            // LÓGICA DE GANHO ARCA [cite: 2026-01-19]
+            if(abs < 0.2) {
+                balance += 0.80; sfx(440 + (score*15));
+                const p = document.getElementById('perfect');
+                p.style.display='block'; setTimeout(()=>p.style.display='none', 600);
+            } else {
+                balance += 0.40; sfx(220 + (score*5));
+            }
 
             const newW = prev.w - abs;
             cur.mesh.scale.x = newW / cur.w;
             cur.mesh.position.x = prev.mesh.position.x + diff/2;
-            cur.w = newW; score++; speed += 0.005;
+            cur.w = newW; score++; speed += 0.006;
             
             document.getElementById('bal').innerText = "R$ " + balance.toFixed(2);
             document.getElementById('lvl').innerText = score;
