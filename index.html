@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>THE BRIDGE - NEON SNIPER</title>
+    <style>
+        body { margin: 0; background: #050505; color: #00ffcc; font-family: 'Courier New', monospace; overflow: hidden; touch-action: none; }
+        #gameCanvas { display: block; filter: drop-shadow(0 0 10px #00ffcc); }
+        #ui { position: absolute; top: 10px; left: 10px; z-index: 10; pointer-events: none; }
+        #msg { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; display: none; }
+        .neon-text { text-shadow: 0 0 5px #00ffcc, 0 0 15px #00ffcc; }
+    </style>
+</head>
+<body>
+    <div id="ui">
+        <div class="neon-text">SALDO_CRIPT: <span id="balanceDisplay">--</span></div>
+        <div class="neon-text">VENTO_CHAOS: <span id="windDisplay">0.00</span></div>
+    </div>
+    <div id="msg">
+        <h1 class="neon-text" id="statusTitle">GAME OVER</h1>
+        <p>QUASE! VOCÊ ERROU POR <span id="errorDist"></span>mm</p>
+        <button onclick="resetGame()" style="padding: 10px 20px; background: #00ffcc; border: none; cursor: pointer;">TENTAR NOVAMENTE</button>
+    </div>
+    <canvas id="gameCanvas"></canvas>
+
+<script>
+    // --- CAMADA 1: CRIPTOGRAFIA DE MEMÓRIA [2026-02-06] ---
+    let _s = Math.sqrt(93.8961); // Saldo inicial disfarçado (R$ 9.69)
+    function getBalance() { return (_s * _s).toFixed(2); }
+    function setBalance(v) { _s = Math.sqrt(v); }
+
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    let bridgeWidth = 0;
+    let isBuilding = false;
+    let playerX = 50;
+    let targetX = 150 + Math.random() * 150;
+    let targetWidth = 40;
+    let wind = 0;
+    let isSlowMo = false;
+
+    // --- CAMADA 2: LATÊNCIA FANTASMA [2026-02-13] ---
+    function phantomLatency() {
+        return Math.random() * (45 - 12) + 12;
+    }
+
+    function update() {
+        if (isBuilding) {
+            bridgeWidth += 3 + (Math.random() * 0.5); // Incremento com micro-ruído
+        }
+        draw();
+        requestAnimationFrame(update);
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Plataforma Inicial
+        ctx.fillStyle = '#111';
+        ctx.fillRect(0, canvas.height - 100, 80, 100);
+
+        // Alvo (The Bridge)
+        ctx.fillStyle = isSlowMo ? '#ff0055' : '#00ffcc';
+        ctx.fillRect(targetX, canvas.height - 100, targetWidth, 100);
+
+        // Ponte sendo construída
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(80, canvas.height - 100);
+        ctx.lineTo(80, canvas.height - 100 - bridgeWidth);
+        ctx.stroke();
+
+        // --- CAMADA 3: CHAOS ENGINE (VENTO) [2026-02-03] ---
+        document.getElementById('windDisplay').innerText = wind.toFixed(2) + " km/h";
+    }
+
+    // --- LOGICA DE VÍCIO: O TOQUE ---
+    window.addEventListener('mousedown', () => {
+        setTimeout(() => { isBuilding = true; }, phantomLatency());
+    });
+
+    window.addEventListener('mouseup', () => {
+        setTimeout(() => {
+            isBuilding = false;
+            dropBridge();
+        }, phantomLatency());
+    });
+
+    function dropBridge() {
+        let finalPos = 80 + bridgeWidth;
+        let diff = Math.abs(finalPos - (targetX + targetWidth/2));
+
+        // --- CAMADA 4: SLOW MOTION (QUASE-ACERTO) [2026-02-13] ---
+        if (diff > targetWidth/2 && diff < targetWidth) {
+            isSlowMo = true;
+            document.getElementById('errorDist').innerText = (diff / 10).toFixed(2);
+            setTimeout(() => { showGameOver(); }, 800); // Queda em câmera lenta
+        } else if (diff <= targetWidth/2) {
+            // SUCESSO
+            setBalance(parseFloat(getBalance()) + 0.20);
+            alert("CENTRO PERFEITO! +R$ 0,20");
+            nextLevel();
+        } else {
+            showGameOver();
+        }
+    }
+
+    function showGameOver() {
+        document.getElementById('msg').style.display = 'block';
+        document.getElementById('balanceDisplay').innerText = getBalance();
+    }
+
+    function nextLevel() {
+        bridgeWidth = 0;
+        targetX = 150 + Math.random() * (canvas.width - 250);
+        targetWidth = Math.max(15, targetWidth - 2); // Pilar afunila (Fraqueza -> Força)
+        wind = (Math.random() - 0.5) * 10; // Vento aumenta
+        document.getElementById('balanceDisplay').innerText = getBalance();
+    }
+
+    function resetGame() {
+        location.reload();
+    }
+
+    document.getElementById('balanceDisplay').innerText = getBalance();
+    update();
+</script>
+</body>
+</html>
