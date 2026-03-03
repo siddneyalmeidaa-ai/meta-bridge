@@ -3,113 +3,148 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>META STACK V4 - SENSORIAL</title>
+    <title>META STACK - ULTIMATE</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        body { margin: 0; background: #020205; overflow: hidden; touch-action: none; font-family: 'Orbitron', sans-serif; }
-        #ui { position: absolute; top: 20px; width: 100%; text-align: center; pointer-events: none; z-index: 10; }
-        .monitor { background: rgba(0, 255, 204, 0.1); border: 1px solid #00ffcc; padding: 15px; border-radius: 8px; backdrop-filter: blur(10px); display: inline-flex; gap: 30px; box-shadow: 0 0 20px rgba(0, 255, 204, 0.3); }
-        .val { font-size: 20px; color: #fff; font-weight: bold; text-shadow: 0 0 10px #00ffcc; }
-        #msg { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; background: rgba(255, 0, 85, 0.1); border: 2px solid #ff0055; padding: 40px; text-align: center; backdrop-filter: blur(15px); color: white; z-index: 100; }
+        body { margin: 0; background: #020205; overflow: hidden; touch-action: none; font-family: 'Orbitron', sans-serif; color: #fff; }
+        #ui { position: absolute; top: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
+        .hud { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; background: rgba(0,255,204,0.1); padding: 15px; border: 1px solid #00ffcc; border-radius: 10px; backdrop-filter: blur(10px); }
+        .shop-btn { position: absolute; bottom: 20px; right: 20px; pointer-events: auto; background: #00ffcc; color: #000; border: none; padding: 10px 20px; font-weight: bold; cursor: pointer; }
+        #msg { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; text-align: center; background: rgba(0,0,0,0.9); padding: 40px; border: 2px solid #ff0055; pointer-events: auto; }
+        .perfect { position: absolute; top: 30%; left: 50%; transform: translateX(-50%); font-size: 40px; color: #00ffcc; display: none; text-shadow: 0 0 20px #00ffcc; }
     </style>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
 </head>
 <body>
     <div id="ui">
-        <div class="monitor">
-            <div><div style="font-size: 10px; color: #00ffcc;">META</div><div class="val">R$ <span id="bal">0.00</span></div></div>
-            <div><div style="font-size: 10px; color: #00ffcc;">COMBO</div><div class="val" id="lvl">0</div></div>
+        <div class="hud">
+            <div><small>SALDO</small><br><span id="bal">R$ 0.00</span></div>
+            <div><small>BEST</small><br><span id="best">0</span></div>
+            <div><small>LEVEL</small><br><span id="lvl">0</span></div>
         </div>
+        <div id="perfect" class="perfect">PERFEITO! +R$ 0.80</div>
+        <button class="shop-btn" onclick="toggleShop()">SKINS / LOJA</button>
     </div>
+
     <div id="msg">
-        <h1 style="text-shadow: 0 0 15px #ff0055;">SISTEMA FALHOU</h1>
-        <button onclick="location.reload()" style="background:#00ffcc; border:none; padding:10px 20px; font-weight:bold; cursor:pointer;">REINICIAR</button>
+        <h1 style="color:#ff0055">SISTEMA COMPROMETIDO</h1>
+        <p id="final-score"></p>
+        <button onclick="location.reload()" style="background:#00ffcc; border:none; padding:15px 30px; font-weight:bold; cursor:pointer;">RECONECTAR</button>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
-        // --- MOTOR DE ÁUDIO SINTETIZADO [cite: 2026-02-13] ---
+        // --- ÁUDIO E VIBRAÇÃO [cite: 2026-02-13] ---
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        function playTone(freq, type = 'sine', duration = 0.1) {
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.type = type; osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
-            osc.connect(gain); gain.connect(audioCtx.destination);
-            osc.start(); osc.stop(audioCtx.currentTime + duration);
+        function playNote(f) {
+            const o = audioCtx.createOscillator(); const g = audioCtx.createGain();
+            o.type = 'triangle'; o.frequency.setValueAtTime(f, audioCtx.currentTime);
+            g.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.5);
+            o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime + 0.5);
         }
 
-        let scene, camera, renderer, stack = [], gameActive = true, score = 0, balance = 0, speed = 0.12;
+        // --- MOTOR 3D REALISTA ---
+        let scene, camera, renderer, stack = [], score = 0, balance = 0, speed = 0.12, gameActive = true;
+        let currentSkinColor = 0x00ffcc;
 
         function init() {
-            scene = new THREE.Scene(); scene.fog = new THREE.FogExp2(0x020205, 0.15);
+            scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x020205, 0.15);
             camera = new THREE.OrthographicCamera(window.innerWidth/-150, window.innerWidth/150, window.innerHeight/150, window.innerHeight/-150, -100, 1000);
             camera.position.set(4, 4, 4); camera.lookAt(0, 0, 0);
+            
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.body.appendChild(renderer.domElement);
-            scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-            const light = new THREE.DirectionalLight(0x00ffcc, 1); light.position.set(5, 10, 5); scene.add(light);
-            addBlock(0, 0, 3, 3); spawnNext(); loop();
+
+            scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+            const sun = new THREE.DirectionalLight(0xffffff, 0.8); sun.position.set(5, 10, 5); scene.add(sun);
+
+            addBlock(0, 0, 3, 3); spawnNext();
+            document.getElementById('best').innerText = localStorage.getItem('metaBest') || 0;
+            animate();
         }
 
         function addBlock(x, z, w, d) {
-            const mat = new THREE.MeshPhongMaterial({ color: score % 2 === 0 ? 0x00ffcc : 0x0088ff });
-            const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, 1, d), mat);
-            mesh.position.set(x, stack.length, z); scene.add(mesh);
+            const mesh = new THREE.Mesh(
+                new THREE.BoxGeometry(w, 1, d),
+                new THREE.MeshPhongMaterial({ color: currentSkinColor, shininess: 100, emissive: 0x001111 })
+            );
+            mesh.position.set(x, stack.length, z);
+            scene.add(mesh);
             stack.push({ mesh, w, d });
         }
 
         function spawnNext() { addBlock(-6, stack[stack.length-1].mesh.position.z, stack[stack.length-1].w, stack[stack.length-1].d); }
 
-        function loop() {
+        function animate() {
             if (!gameActive) return;
-            stack[stack.length-1].mesh.position.x += speed;
-            if (stack[stack.length-1].mesh.position.x > 6) endGame();
+            let top = stack[stack.length-1].mesh;
+            top.position.x += speed;
+            if (top.position.x > 6) gameOver();
             renderer.render(scene, camera);
-            requestAnimationFrame(loop);
+            requestAnimationFrame(animate);
         }
 
-        window.onclick = () => {
-            if (!gameActive) return;
+        window.onclick = (e) => {
+            if (e.target.tagName === 'BUTTON' || !gameActive) return;
             if (audioCtx.state === 'suspended') audioCtx.resume();
-            
+
             const cur = stack[stack.length-1], prev = stack[stack.length-2];
             const diff = cur.mesh.position.x - prev.mesh.position.x;
             const absDiff = Math.abs(diff);
 
-            if (absDiff >= prev.w) return endGame();
+            if (absDiff >= prev.w) return gameOver();
 
-            // VIBRAÇÃO E SOM [cite: 2026-02-13]
-            if (absDiff < 0.15) { // PERFECT
+            // LÓGICA DE GANHO E FEEDBACK [cite: 2026-01-19, 2026-02-13]
+            if (absDiff < 0.12) {
+                balance += 0.80; showPerfect();
                 if(navigator.vibrate) navigator.vibrate([30, 50, 30]);
-                playTone(440 + (score * 20), 'triangle', 0.2); 
-                balance += 0.80;
+                playNote(440 + (score * 25));
             } else {
-                if(navigator.vibrate) navigator.vibrate(20);
-                playTone(220, 'sine', 0.1);
                 balance += 0.40;
+                if(navigator.vibrate) navigator.vibrate(20);
+                playNote(220 + (score * 10));
             }
 
-            // AJUSTE DE TAMANHO
             const newW = prev.w - absDiff;
             cur.mesh.scale.x = newW / cur.w;
             cur.mesh.position.x = prev.mesh.position.x + diff/2;
             cur.w = newW;
 
-            score++; speed += 0.004;
-            document.getElementById('bal').innerText = balance.toFixed(2);
-            document.getElementById('lvl').innerText = score;
+            score++; speed += 0.005;
+            updateUI();
             camera.position.y += 1;
             spawnNext();
         };
 
-        function endGame() {
+        function updateUI() {
+            document.getElementById('bal').innerText = "R$ " + balance.toFixed(2);
+            document.getElementById('lvl').innerText = score;
+        }
+
+        function showPerfect() {
+            const p = document.getElementById('perfect');
+            p.style.display = 'block'; setTimeout(() => p.style.display = 'none', 600);
+        }
+
+        function gameOver() {
             gameActive = false;
-            if(navigator.vibrate) navigator.vibrate([100, 50, 100]);
-            playTone(110, 'sawtooth', 0.5);
+            playNote(100); if(navigator.vibrate) navigator.vibrate([200, 100, 200]);
+            const best = localStorage.getItem('metaBest') || 0;
+            if(score > best) localStorage.setItem('metaBest', score);
+            document.getElementById('final-score').innerText = "Meta Atingida: " + score + " níveis.";
             document.getElementById('msg').style.display = 'block';
         }
+
+        function toggleShop() {
+            const n = prompt("LOJA DE SKINS:\n1. Neon (Grátis)\n2. Ouro (R$ 50.00)\n3. Rubi (R$ 100.00)\nDigite o número:");
+            if(n == "2" && balance >= 50) { currentSkinColor = 0xffd700; balance -= 50; }
+            else if(n == "3" && balance >= 100) { currentSkinColor = 0xff0055; balance -= 100; }
+            else { currentSkinColor = 0x00ffcc; }
+            updateUI();
+        }
+
         init();
     </script>
 </body>
